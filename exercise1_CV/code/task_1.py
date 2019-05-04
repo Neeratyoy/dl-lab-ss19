@@ -129,8 +129,6 @@ def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
         if i % freq_log == freq_log-1:    # print every freq_log mini-batches
             print('[%d, %5d] loss: %.3f' %
                   (epoch_num, i + 1, np.mean(running_loss)))
-        if (i+1) % 100 == 0:
-            return running_loss
     return running_loss
 
 
@@ -140,7 +138,7 @@ def train(net, **kwargs):
     epochs = kwargs['epochs']
     freq_log = kwargs['freq_log']
     train_loader = get_data_loader(batch_size=batch_size,
-                                   is_train=False)
+                                   is_train=True)
     # test set
     if valid: val_loader = get_data_loader(batch_size=batch_size,
                                            is_train=False)
@@ -160,18 +158,18 @@ def train(net, **kwargs):
             print('-'*75)
             if valid:
                 test_mpjpe.append(mpjpe_eval(net, val_loader))
-                plot_learning_curve(train_mpjpe, "model_store/", "train_test", test=test_mpjpe)
+                plot_learning_curve(train_mpjpe, "model_store/task_2/pretrained_F/", "train_test", test=test_mpjpe)
                 print("Epoch #%s: Training_MPJPE = %s px, Testing_MPJPE = %s px" %
                             (epoch, train_mpjpe[-1], test_mpjpe[-1]))
             else:
-                plot_learning_curve(train_mpjpe, "model_store/", "train", test=None)
+                plot_learning_curve(train_mpjpe, "model_store/task_2/pretrained_F/", "train", test=None)
                 print("Epoch #%s: Training_MPJPE = %s px" % (epoch, train_mpjpe[-1]))
             print('-'*75)
 
         # save model every 5 epochs, and first and last epochs
         if epoch % 5 == 0 or epoch == 1 or epoch == epochs:
             print("Taking model snapshot...")
-            torch.save(net.state_dict(), "model_store/e_%s.pt" % epoch)
+            torch.save(net.state_dict(), "model_store/task_2/pretrained_F/e_%s.pt" % epoch)
 
 
 if __name__ == '__main__':
