@@ -2,7 +2,8 @@ import json, os, torch
 from torchvision import transforms
 from PIL import Image
 
-COCO_PATH = "/home/dllab/coco_subset/"
+# COCO_PATH = "/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/coco_subset/"
+COCO_PATH = "/content/coco_subset/"  # for Colab
 
 
 class DataReader:
@@ -19,12 +20,12 @@ class DataReader:
 
         ann = self.annotations[idx]
         img = Image.open(os.path.join(self.root, ann["file_name"])).convert('RGB')
-        
+
         w, h = img.size
-        
+
         if self.transform is not None:
             img = self.transform(img)
-        
+
         keypoints = []
         weights = []
         for i in range(17):
@@ -65,11 +66,9 @@ def get_data_loader(batch_size=1,
                         annotation_file,
                         transform=transform,
                         single_sample=single_sample)
-    
+
     data_loader = torch.utils.data.DataLoader(reader,
                                               batch_size=batch_size,
                                               shuffle=is_train,
-                                              num_workers=4 if is_train else 1)
+                                              num_workers=3 if is_train else 1)
     return data_loader
-
-
