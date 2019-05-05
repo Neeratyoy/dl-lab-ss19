@@ -33,9 +33,9 @@ def plot_iou(train, out_dir, name, test=None):
     '''
     plt.clf()
     x = np.arange(1, len(train)*2+1, step=2)
-    plt.plot(x, train, color='red', label='Training Loss')
+    plt.plot(x, train, color='red', label='Training IoU')
     if test is not None:
-        plt.plot(x, test, color='green', label='Test Set Loss')
+        plt.plot(x, test, color='green', label='Test IoU')
     plt.title('IoU over Epochs')
     plt.xlabel('Epochs')
     plt.ylabel('IoU')
@@ -47,7 +47,7 @@ def plot_iou(train, out_dir, name, test=None):
     plt.savefig(out_dir+'iou_'+str(name)+'.png',dpi=300)
     plot_data = {'train': train, 'test': test}
     with open(out_dir+'plot_data.json', 'w') as f:
-        json.dump(plot_data)
+        json.dump(plot_data, f)
 
 
 def iou(batch1, batch2):
@@ -79,16 +79,6 @@ def iou_eval(net, data_loader):
 
     metric = np.mean(metric)
     return metric
-
-
-# IoU calculations
-# torch.sum(mask * outputs, dim=(1,2)) / torch.sum(mask + outputs - mask * outputs, dim=(1,2))
-# Softamx on output
-# softmax = torch.nn.Softmax()
-# outputs = softmax(outputs)
-#
-# loss = torch.nn.BCELoss()
-# loss(outputs, mask.long())
 
 
 def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
@@ -130,12 +120,11 @@ def train(net, **kwargs):
     epochs = kwargs['epochs']
     freq_log = kwargs['freq_log']
     out_dir = kwargs['out_dir']
+    
     # train set
-    train_loader = get_data_loader(batch_size=batch_size,
-                                   is_train=True)
+    train_loader = get_data_loader(batch_size=batch_size, is_train=True)
     # test set
-    if valid: val_loader = get_data_loader(batch_size=batch_size,
-                                           is_train=False)
+    if valid: val_loader = get_data_loader(batch_size=batch_size, is_train=False)
 
     criterion = nn.BCELoss()  # binary cross entropy loss
     optimizer = optim.Adam(net.parameters(), lr=0.0001)
@@ -172,8 +161,8 @@ if __name__ == '__main__':
                         help='Number of epochs.')
     parser.add_argument('-b', '--batch', dest='batch_size', type=int, default=128,
                         help='Integer giving the batch size.')
-    parser.add_argument('-v', '--validate', dest='valid', type=bool, default=True,
-                        choices=[True, False], help='Whether to validate after training.')
+    parser.add_argument('-v', '--validate', dest='valid', type=str, default='True',
+                        choices=['True', 'False'], help='Whether to validate after training.')
     parser.add_argument('-f', '--frequency_logging', dest='freq_log', type=int, default=200,
                         help='Number of batches after which logs and plots will be generated.')
     parser.add_argument('-t', '--task', dest='task', type=int, default=1,

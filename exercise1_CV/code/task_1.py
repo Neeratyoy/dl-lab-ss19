@@ -1,7 +1,7 @@
+import json
 import argparse
 import numpy as np
 from matplotlib import pyplot as plt
-import json
 
 import torch
 import torch.nn as nn
@@ -11,6 +11,15 @@ from model.model import ResNetModel, ResNetHourglass
 from model.data import get_data_loader
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
+def parameter_count(model):
+    return(sum(p.numel() for p in model.parameters() if p.requires_grad))
+
+
+def model_size_in_MB(model):
+    # 72 verified using sys.getsizeof of a weight value
+    return((parameter_count(model) * 72) / (1024*1024))
 
 
 def plot_learning_curve(train, out_dir, name, test=None):
@@ -38,16 +47,13 @@ def plot_learning_curve(train, out_dir, name, test=None):
     plt.savefig(out_dir+'learning_curve_'+str(name)+'.png',dpi=300)
     plot_data = {'train': train, 'test': test}
     with open(out_dir+'plot_data.json', 'w') as f:
-        json.dump(plot_data)
+        json.dump(plot_data, f)
 
 
 def normalize_keypoints(keypoints, img_shape):
     if img_shape[-1] != img_shape[-2]:
         raise ValueError("Only square images are supported")
     return keypoints/img_shape[-1]
-
-
-# x.contiguous().view(34,2)
 
 
 def mpjpe_eval(net, data_loader):
@@ -83,23 +89,29 @@ def mpjpe_eval(net, data_loader):
             outputs = outputs.view(outputs.shape[0]*outputs.shape[1], outputs.shape[2])
             metric.append(torch.mean(torch.sum(pdist(labels, outputs).view(b_size,17), 1) /
                                      (torch.sum(weights.double(), 1)/2)).item())
-            # metric.append(torch.mean(dist).item())
     metric = np.mean(metric)
     return metric * inputs.shape[-1]
 
 
-# gt = gt.view(gt.shape[0], int(gt.shape[1] / 2), 2)
-# gt = gt.view(gt.shape[0]*gt.shape[1], gt.shape[2])
-# preds = preds.view(preds.shape[0], int(preds.shape[1] / 2), 2)
-# preds = preds.view(preds.shape[0]*preds.shape[1], preds.shape[2])
-# torch.mean(torch.sum(pdist(gt, preds).view(2,17), 1) / (torch.sum(weights.double(), 1)/2)).item() * 256
+class L2_Loss(torch.nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self,outputs,labels):
+        batch_size, kp_size = outputs.shape
+        kp_size = kp_size // 2
+        outputs = outputs.view(batch_size, kp_size, 2).view(batch_size * kp_size, 2)
+        labels = labels.view(batch_size, kp_size, 2).view(batch_size * kp_size, 2)
+        totloss = torch.mean(torch.sum(torch.sum((outputs - labels) ** 2, 1).view(batch_size, kp_size), 1))
+        return totloss
 
 
 def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
                 freq_log, **kwargs):
     running_loss = []
     for i, data in enumerate(data_loader):
-        print(i)
+        # print(i)
         # get the inputs
         inputs, labels, weights = data
         labels = normalize_keypoints(labels, inputs.shape)
@@ -119,35 +131,36 @@ def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
         # zero the parameter gradients
         optimizer.zero_grad()
 
-        # forward + backward + optimize
+        # forward
         outputs = net(inputs, '')
         # ignore predictions for missing keypoints
         outputs = weights.double() * outputs.double()
         loss = loss_criterion(outputs, labels)
-        # if backprop:
+        # backward + optimize
         loss.backward()
         optimizer.step()
         torch.cuda.empty_cache()
         # print statistics
         running_loss.append(loss.item())
         if i % freq_log == freq_log-1:    # print every freq_log mini-batches
-            print('[%d, %5d] loss: %.3f' %
-                  (epoch_num, i + 1, np.mean(running_loss)))
+            print("Epoch #%d; Batch %d/%d; Loss: %f" %
+                  (epoch_num, i+1, len(data_loader), np.mean(running_loss)))
     return running_loss
 
 
 def train(net, **kwargs):
     batch_size = kwargs['batch_size']
-    valid = kwargs['valid']
+    valid = True if (kwargs['valid'] == 'True') else False
     epochs = kwargs['epochs']
     freq_log = kwargs['freq_log']
-    train_loader = get_data_loader(batch_size=batch_size,
-                                   is_train=True)
-    # test set
-    if valid: val_loader = get_data_loader(batch_size=batch_size,
-                                           is_train=False)
+    out_dir = kwargs['out_dir']
 
-    criterion = nn.MSELoss()
+    # train set
+    train_loader = get_data_loader(batch_size=batch_size, is_train=True)
+    # test set
+    if valid: val_loader = get_data_loader(batch_size=batch_size, is_train=False)
+
+    criterion = L2_Loss()  #  nn.MSELoss()
     optimizer = optim.Adam(net.parameters(), lr=0.0001)
 
     train_mpjpe = []
@@ -162,18 +175,18 @@ def train(net, **kwargs):
             print('-'*75)
             if valid:
                 test_mpjpe.append(mpjpe_eval(net, val_loader))
-                plot_learning_curve(train_mpjpe, "model_store/task_2/pretrained_F/", "train_test", test=test_mpjpe)
+                plot_learning_curve(train_mpjpe, out_dir, "train_test", test=test_mpjpe)
                 print("Epoch #%s: Training_MPJPE = %s px, Testing_MPJPE = %s px" %
                             (epoch, train_mpjpe[-1], test_mpjpe[-1]))
             else:
-                plot_learning_curve(train_mpjpe, "model_store/task_2/pretrained_F/", "train", test=None)
+                plot_learning_curve(train_mpjpe, out_dir, "train", test=None)
                 print("Epoch #%s: Training_MPJPE = %s px" % (epoch, train_mpjpe[-1]))
             print('-'*75)
 
         # save model every 5 epochs, and first and last epochs
         if epoch % 5 == 0 or epoch == 1 or epoch == epochs:
             print("Taking model snapshot...")
-            torch.save(net.state_dict(), "model_store/task_2/pretrained_F/e_%s.pt" % epoch)
+            torch.save(net.state_dict(), out_dir+"e_%s.pt" % epoch)
 
 
 if __name__ == '__main__':
@@ -182,22 +195,31 @@ if __name__ == '__main__':
                         help='Number of epochs.')
     parser.add_argument('-b', '--batch', dest='batch_size', type=int, default=128,
                         help='Integer giving the batch size.')
-    parser.add_argument('-v', '--validate', dest='valid', type=bool, default=True,
-                        choices=[True, False], help='Whether to validate after training.')
+    parser.add_argument('-v', '--validate', dest='valid', type=str, default='True',
+                        choices=['True', 'False'], help='Whether to validate after training.')
     parser.add_argument('-f', '--frequency_logging', dest='freq_log', type=int, default=200,
                         help='Number of batches after which logs and plots will be generated.')
     parser.add_argument('-t', '--task', dest='task', type=int, default=1,
-                        choices=[1, 2], help='The task number to run for HPE.')
-    parser.add_argument('-p', '--pretrained', dest='pretrained', type=bool, default=True,
-                        choices=[True, False], help='To use pretrained ImageNet weights or not.')
+                        choices=[1, 2], help='The task number to run for HPE. \
+                        1) HPE using Regression of keypoints. \
+                        2) HPE using Soft-argmax to learn backprop through learned keypoints.')
+    parser.add_argument('-p', '--pretrained', dest='pretrained', type=str, default='True',
+                        choices=['True', 'False'], help='To use pretrained ImageNet weights or not.')
+    parser.add_argument('-o', '--out', dest='out_dir', type=str, default='',
+                        help='Directory to save models and plots.')
 
     args = parser.parse_args()
+    pretrained = True if (args.pretrained == 'True') else False
     if args.task == 1:
-        net = ResNetModel(pretrained=args.pretrained)
+        net = ResNetModel(pretrained=pretrained)
     else:
-        net = ResNetHourglass(pretrained=args.pretrained)
+        net = ResNetHourglass(pretrained=pretrained)
     print(net)
+    print('~+~'*15)
+    print('# of model parameters: ', parameter_count(net))
+    print('Size of model (in MB): ', model_size_in_MB(net))
+    print('~+~'*15)
     if torch.cuda.is_available():
         net.cuda()
     train(net, epochs=args.epochs, batch_size=args.batch_size, valid=args.valid,
-          freq_log=args.freq_log)
+          freq_log=args.freq_log, out_dir=args.out_dir)

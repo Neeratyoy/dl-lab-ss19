@@ -40,6 +40,7 @@ class ResNetModel(nn.Module):
                 nn.init.xavier_uniform_(m.weight)
 
         if pretrained:
+            print("loading pretrained weights...")
             self.res_conv.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
 
     def forward(self, inputs, filename=''):
@@ -70,59 +71,52 @@ class ResNetHourglass(nn.Module):
         # base network
         self.res_conv = ResNetConv(BasicBlock, [2, 2, 2, 2])
         if pretrained:
+            print("loading pretrained weights...")
             self.res_conv.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
         # removing output FC layer
         self.res_conv = nn.Sequential(*list(self.res_conv.children())[:-3])
-        # outputs 256x64x64
+        # outputs 256x16x16
 
         # creating transpose convolution layers
-        # self.deconv1 = nn.Sequential(
-        #                     nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=4,
-        #                                        stride=2, padding=1), # output_size = 16
-        #                     nn.BatchNorm2d(num_features=256),
-        #                     nn.ReLU()
-        #                 )
-        self.deconv2 = nn.Sequential(
+        self.deconv1 = nn.Sequential(
                             nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4,
                                                stride=2, padding=1),  # output_size = 32
                             nn.BatchNorm2d(num_features=128),
                             nn.ReLU()
                         )
-        self.deconv3 = nn.Sequential(
+        self.deconv2 = nn.Sequential(
                             nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4,
                                                stride=2, padding=1),  # output_size = 64
                             nn.BatchNorm2d(num_features=64),
                             nn.ReLU()
                         )
-        self.deconv4 = nn.Sequential(
+        self.deconv3 = nn.Sequential(
                             nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4,
                                                stride=2, padding=1),  # output_size = 128
                             nn.BatchNorm2d(num_features=32),
                             nn.ReLU()
                         )
-        self.deconv5 = nn.Sequential(
+        self.deconv4 = nn.Sequential(
                             nn.ConvTranspose2d(in_channels=32, out_channels=17, kernel_size=4,
-                                               stride=2, padding=1),  # output_size = 256x256x17
+                                               stride=2, padding=1),  # output_size = 17x256x256
                             nn.BatchNorm2d(num_features=17),
                             nn.ReLU()
                         )
 
     def forward(self, inputs, filename=''):
         x = self.res_conv(inputs)
-        # x = self.deconv1(x)
+        x = self.deconv1(x)
         x = self.deconv2(x)
         x = self.deconv3(x)
         x = self.deconv4(x)
-        x = self.deconv5(x)
 
-        # computing soft-argmax and reshaping to a batch x 34 dimensional vector
+        # computing soft-argmax and reshaping to a batch x 34 dimensional tensor
         x = softmax(x)
         img_size = x.shape[-1]
         Wy = torch.arange(1, img_size+1).double().clone().expand(img_size, img_size) / img_size
         Wx = Wy.clone().transpose(0, 1)
         Wx = Wx.unsqueeze(0).expand(*x.shape).double().to(device)
         Wy = Wy.unsqueeze(0).expand(*x.shape).double().to(device)
-        # print(x.is_cuda, Wx.is_cuda, Wy.is_cuda)
         result_x = torch.sum(x.double() * Wx, dim=(2,3))
         result_y = torch.sum(x.double() * Wy, dim=(2,3))
         result = torch.cat([torch.unsqueeze(result_x, 2), torch.unsqueeze(result_y, 2)], dim=2)
@@ -152,8 +146,7 @@ class SegNet(nn.Module):
         if pretrained:
             self.res_conv.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
         # removing output FC layer
-        # self.res_conv = nn.Sequential(*list(self.res_conv.children())[:-2])   # outputs 256x16x16
-        self.res_conv = nn.ModuleList([*list(self.res_conv.children())[:-2]])
+        self.res_conv = nn.ModuleList([*list(self.res_conv.children())[:-2]])  # outputs 512x8x8
 
         if task == 1:
             self.upsample = nn.Sequential(
@@ -185,7 +178,7 @@ class SegNet(nn.Module):
             self.deconv4 = nn.Sequential(
                                 nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=8,
                                                    stride=4, padding=2),  # output_size = 256
-                                                   # 1x1 convoluton to downsample channels
+                                # 1x1 convoluton to downsample channels
                                 nn.Conv2d(in_channels=32, out_channels=1, kernel_size=1,
                                          stride=1, padding=0),
                                 nn.Sigmoid()
@@ -197,7 +190,7 @@ class SegNet(nn.Module):
                                 nn.BatchNorm2d(num_features=256),
                                 nn.ReLU()
                             )
-            # in_channels are multiplied by 2 - concatenation from skip connections
+            # in_channels are multiplied by 2 -> input has concatenation from skip connections
             self.deconv2 = nn.Sequential(
                                 nn.ConvTranspose2d(in_channels=256*2, out_channels=128, kernel_size=4,
                                                    stride=2, padding=1),  # output_size = 32
@@ -241,7 +234,8 @@ class SegNet(nn.Module):
             x = self.deconv2(x)
             x = self.deconv3(x)
             x = self.deconv4(x)
-        else: # task = 3 (skip connections)
+        else:
+            # For task == 3 (decoder with skip connections)
             # intermediate[0] -> 64 x 64 x 64
             # intermediate[1] -> 128 x 32 x 32
             # intermediate[2] -> 256 x 16 x 16
@@ -263,6 +257,5 @@ class Identity(nn.Module):
 
     def forward(self, x):
         return x
-
 # model = models.resnet18(pretrained=False)
 # model.fc = Identity()
