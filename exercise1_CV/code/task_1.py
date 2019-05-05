@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 from matplotlib import pyplot as plt
+import json
 
 import torch
 import torch.nn as nn
@@ -35,6 +36,9 @@ def plot_learning_curve(train, out_dir, name, test=None):
     plt.grid(which='major', linestyle=':') #, axis='y')
     plt.grid(which='minor', linestyle='--', axis='y')
     plt.savefig(out_dir+'learning_curve_'+str(name)+'.png',dpi=300)
+    plot_data = {'train': train, 'test': test}
+    with open(out_dir+'plot_data.json', 'w') as f:
+        json.dump(plot_data)
 
 
 def normalize_keypoints(keypoints, img_shape):

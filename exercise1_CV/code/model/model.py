@@ -42,7 +42,7 @@ class ResNetModel(nn.Module):
         if pretrained:
             self.res_conv.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
 
-    def forward(self, inputs, filename):
+    def forward(self, inputs, filename=''):
         x, _ = self.res_conv(inputs)
 
         x = self.avgpool(x)
@@ -107,7 +107,7 @@ class ResNetHourglass(nn.Module):
                             nn.ReLU()
                         )
 
-    def forward(self, inputs, filename):
+    def forward(self, inputs, filename=''):
         x = self.res_conv(inputs)
         # x = self.deconv1(x)
         x = self.deconv2(x)
@@ -146,85 +146,123 @@ class Interpolate(nn.Module):
 class SegNet(nn.Module):
     def __init__(self, pretrained, task=1):
         super().__init__()
-
+        self.task = task
         # base network
         self.res_conv = ResNetConv(BasicBlock, [2, 2, 2, 2])
         if pretrained:
             self.res_conv.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
         # removing output FC layer
-        self.res_conv = nn.Sequential(*list(self.res_conv.children())[:-3])   # outputs 256x16x16
+        # self.res_conv = nn.Sequential(*list(self.res_conv.children())[:-2])   # outputs 256x16x16
+        self.res_conv = nn.ModuleList([*list(self.res_conv.children())[:-2]])
 
         if task == 1:
             self.upsample = nn.Sequential(
                                 Interpolate(size=(256, 256), mode='bilinear'),
                                 # 1x1 convoluton to downsample channels
-                                nn.Conv2d(in_channels=256, out_channels=1, kernel_size=1,
+                                nn.Conv2d(in_channels=512, out_channels=1, kernel_size=1,
                                           stride=1, padding=0),
                                 nn.Sigmoid()
                             )
         elif task == 2:
-            self.upsample_deconv1 = nn.Sequential(
-                                        Interpolate(size=(32, 32), mode='bilinear'),
-                                        nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4,
-                                                           stride=2, padding=1),  # output_size = 64
-                                        nn.BatchNorm2d(num_features=128),
-                                        nn.ReLU()
-                                    )
+            self.deconv1 = nn.Sequential(
+                                nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=4,
+                                                   stride=2, padding=1),  # output_size = 16
+                                nn.BatchNorm2d(num_features=256),
+                                nn.ReLU()
+                            )
             self.deconv2 = nn.Sequential(
+                                nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4,
+                                                   stride=2, padding=1),  # output_size = 32
+                                nn.BatchNorm2d(num_features=128),
+                                nn.ReLU()
+                            )
+            self.deconv3 = nn.Sequential(
                                 nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4,
-                                                   stride=2, padding=1),  # output_size = 128
+                                                   stride=2, padding=1),  # output_size = 64
                                 nn.BatchNorm2d(num_features=64),
                                 nn.ReLU()
                             )
-        # self.deconv2 = nn.Sequential(
-                            # nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4,
-                            #                    stride=2, padding=1),  # output_size = 32
-                            # nn.BatchNorm2d(num_features=128),
-                            # nn.ReLU()
-        #                 )
-        # self.deconv3 = nn.Sequential(
-        #                     nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4,
-        #                                        stride=2, padding=1),  # output_size = 64
-        #                     nn.BatchNorm2d(num_features=64),
-        #                     nn.ReLU()
-        #                 )
-        # self.deconv4 = nn.Sequential(
-        #                     nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4,
-        #                                        stride=2, padding=1),  # output_size = 128
-        #                     nn.BatchNorm2d(num_features=32),
-        #                     nn.ReLU()
-        #                 )
-        # self.deconv5 = nn.Sequential(
-        #                     nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4,
-        #                                        stride=2, padding=1),  # output_size = 256x256x17
-        #                     nn.BatchNorm2d(num_features=17),
-        #                     nn.ReLU()
-        #                 )
-
-        self.upsample = nn.Sequential(
-                            Interpolate(size=(256, 256), mode='bilinear'),
-                            nn.Conv2d(in_channels=256, out_channels=1, kernel_size=3,
-                                      stride=1, padding=1),
-                            nn.Sigmoid()
-                        )
-
-
-    def forward(self, inputs, filename, task):
-        x = self.res_conv(inputs)
-        if task == 1:
-            x = self.upsample(x)
-        elif task == 2:
-            x = self.upsample(x)
+            self.deconv4 = nn.Sequential(
+                                nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=8,
+                                                   stride=4, padding=2),  # output_size = 256
+                                                   # 1x1 convoluton to downsample channels
+                                nn.Conv2d(in_channels=32, out_channels=1, kernel_size=1,
+                                         stride=1, padding=0),
+                                nn.Sigmoid()
+                            )
         else:
-            x = self.upsample(x)
-        # x = self.deconv1(x)
-        # x = self.deconv2(x)
-        # x = self.deconv3(x)
-        # x = self.deconv4(x)
-        # x = self.deconv5(x)
+            self.deconv1 = nn.Sequential(
+                                nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=4,
+                                                   stride=2, padding=1),  # output_size = 16
+                                nn.BatchNorm2d(num_features=256),
+                                nn.ReLU()
+                            )
+            # in_channels are multiplied by 2 - concatenation from skip connections
+            self.deconv2 = nn.Sequential(
+                                nn.ConvTranspose2d(in_channels=256*2, out_channels=128, kernel_size=4,
+                                                   stride=2, padding=1),  # output_size = 32
+                                nn.BatchNorm2d(num_features=128),
+                                nn.ReLU()
+                            )
+            self.deconv3 = nn.Sequential(
+                                nn.ConvTranspose2d(in_channels=128*2, out_channels=64, kernel_size=4,
+                                                   stride=2, padding=1),  # output_size = 64
+                                nn.BatchNorm2d(num_features=64),
+                                nn.ReLU()
+                            )
+            self.deconv4 = nn.Sequential(
+                                nn.ConvTranspose2d(in_channels=64*2, out_channels=32, kernel_size=8,
+                                                   stride=4, padding=2),  # output_size = 256
+                                                   # 1x1 convoluton to downsample channels
+                                nn.Conv2d(in_channels=32, out_channels=1, kernel_size=1,
+                                         stride=1, padding=0),
+                                nn.Sigmoid()
+                            )
 
+
+    def forward(self, inputs, filename=''):
+        intermediate = []
+        x = self.res_conv[0](inputs)
+        for i in range(1, len(self.res_conv)-4):
+            x = self.res_conv[i](x)
+        for i in range(len(self.res_conv)-4, len(self.res_conv)-1):
+            x = self.res_conv[i](x);
+            intermediate.append(x)
+        x = self.res_conv[-1](x)     # The bottleneck of volume 512 x 8 x 8
+
+        # intermediate[0] -> 64 x 64 x 64
+        # intermediate[1] -> 128 x 32 x 32
+        # intermediate[2] -> 256 x 16 x 16
+
+        if self.task == 1:
+            x = self.upsample(x)
+        elif self.task == 2:
+            x = self.deconv1(x)
+            x = self.deconv2(x)
+            x = self.deconv3(x)
+            x = self.deconv4(x)
+        else: # task = 3 (skip connections)
+            # intermediate[0] -> 64 x 64 x 64
+            # intermediate[1] -> 128 x 32 x 32
+            # intermediate[2] -> 256 x 16 x 16
+            x = self.deconv1(x)
+            # concatenating encoder output along channels
+            x = torch.cat((intermediate[2], x), 1)
+            x = self.deconv2(x)
+            x = torch.cat((intermediate[1], x), 1)
+            x = self.deconv3(x)
+            x = torch.cat((intermediate[0], x), 1)
+            x = self.deconv4(x)
 
         return x
 
 
- # torch.nn.functional.interpolate(x, size = (256, 256), mode='bilinear', align_corners=True).shape
+class Identity(nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def forward(self, x):
+        return x
+
+# model = models.resnet18(pretrained=False)
+# model.fc = Identity()

@@ -1,3 +1,4 @@
+import json
 import argparse
 import numpy as np
 from matplotlib import pyplot as plt
@@ -12,13 +13,22 @@ from model.data_seg import get_data_loader
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def plot_learning_curve(train, out_dir, name, test=None):
+def parameter_count(model):
+    return(sum(p.numel() for p in model.parameters() if p.requires_grad))
+
+
+def model_size_in_MB(model):
+    # 72 verified using sys.getsizeof
+    return((parameter_count(model) * 72) / (1024*1024))
+
+
+def plot_iou(train, out_dir, name, test=None):
     '''
     Plots the learning curve - loss over epochs
     :param train: The set of training losses over epochs
     :param test: The set of test losses over epochs
     :param out_dir: Directory to save the plots
-    :param name: Name appended to the plot saved 'learning_curve_[name].png'
+    :param name: Name appended to the plot saved 'iou_[name].png'
     :return: void
     '''
     plt.clf()
@@ -26,7 +36,7 @@ def plot_learning_curve(train, out_dir, name, test=None):
     plt.plot(x, train, color='red', label='Training Loss')
     if test is not None:
         plt.plot(x, test, color='green', label='Test Set Loss')
-    plt.title('Learning Curve')
+    plt.title('IoU over Epochs')
     plt.xlabel('Epochs')
     plt.ylabel('IoU')
     plt.xticks(x)
@@ -34,10 +44,11 @@ def plot_learning_curve(train, out_dir, name, test=None):
     plt.legend()
     plt.grid(which='major', linestyle=':') #, axis='y')
     plt.grid(which='minor', linestyle='--', axis='y')
-    plt.savefig(out_dir+'learning_curve_'+str(name)+'.png',dpi=300)
+    plt.savefig(out_dir+'iou_'+str(name)+'.png',dpi=300)
+    plot_data = {'train': train, 'test': test}
+    with open(out_dir+'plot_data.json', 'w') as f:
+        json.dump(plot_data)
 
-
-# x.contiguous().view(34,2)
 
 def iou(batch1, batch2):
     batch_size, _, H, W = batch1.shape
@@ -60,8 +71,8 @@ def iou_eval(net, data_loader):
             imgs = imgs.to(device)
             masks = masks.to(device)
 
-            # forward + backward + optimize
-            outputs = net(imgs, '')
+            # forward
+            outputs = torch.round(net(imgs, ''))
 
             # iou evaluation
             metric.append(iou(outputs, masks))
@@ -98,20 +109,18 @@ def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
 
         # forward + backward + optimize
         outputs = net(imgs, '')
-
         loss = loss_criterion(outputs.view(outputs.shape[0], outputs.shape[2],
                                            outputs.shape[3]), masks)
-        # if backprop:
         loss.backward()
         optimizer.step()
 
         # print statistics
         running_loss.append(loss.item())
         if i % freq_log == freq_log-1:    # print every freq_log mini-batches
-            print('[%d, %5d] loss: %.3f' %
-                  (epoch_num, i + 1, np.mean(running_loss)))
-        if (i+1) % 100 == 0:
-            return running_loss
+            print("Epoch #%d; Batch %d/%d; Loss: %f" %
+                  (epoch_num, i+1, len(data_loader), np.mean(running_loss)))
+        # if (i+1) % 100 == 0:
+        #     return running_loss
     return running_loss
 
 
@@ -120,8 +129,10 @@ def train(net, **kwargs):
     valid = kwargs['valid']
     epochs = kwargs['epochs']
     freq_log = kwargs['freq_log']
+    out_dir = kwargs['out_dir']
+    # train set
     train_loader = get_data_loader(batch_size=batch_size,
-                                   is_train=False)
+                                   is_train=True)
     # test set
     if valid: val_loader = get_data_loader(batch_size=batch_size,
                                            is_train=False)
@@ -141,18 +152,18 @@ def train(net, **kwargs):
             print('-'*75)
             if valid:
                 test_IoU.append(iou_eval(net, val_loader))
-                plot_learning_curve(train_IoU, "model_store/task_1/", "train_test", test=test_IoU)
+                plot_iou(train_IoU, out_dir, "train_test", test=test_IoU)
                 print("Epoch #%s: Training_IoU = %s px, Testing_IoU = %s px" %
                             (epoch, train_IoU[-1], test_IoU[-1]))
             else:
-                plot_learning_curve(train_IoU, "model_store/task_1/", "train", test=None)
+                plot_iou(train_IoU, out_dir, "train", test=None)
                 print("Epoch #%s: Training_IoU = %s px" % (epoch, train_IoU[-1]))
             print('-'*75)
 
         # save model every 5 epochs, and first and last epochs
         if epoch % 5 == 0 or epoch == 1 or epoch == epochs:
             print("Taking model snapshot...")
-            torch.save(net.state_dict(), "model_store/task_1/e_%s.pt" % epoch)
+            torch.save(net.state_dict(), out_dir+"e_%s.pt" % epoch)
 
 
 if __name__ == '__main__':
@@ -166,18 +177,20 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--frequency_logging', dest='freq_log', type=int, default=200,
                         help='Number of batches after which logs and plots will be generated.')
     parser.add_argument('-t', '--task', dest='task', type=int, default=1,
-                        choices=[1, 2, 3], help='The task number to run for Segmentation.')
-    parser.add_argument('-p', '--pretrained', dest='pretrained', type=bool, default=True,
-                        choices=[True, False], help='To use pretrained ImageNet weights or not.')
+                        choices=[1, 2, 3], help='The task number to run for Segmentation. \
+                        1) Only upsampling after encoder. 2) 4 layer decoder after encoder. \
+                        3) 4 layer decoder with skip connections from encoder.')
+    parser.add_argument('-o', '--out', dest='out_dir', type=str, default='',
+                        help='Directory to save models and plots.')
 
     args = parser.parse_args()
-    # if args.task == 1:
-    #     net = ResNetModel(pretrained=args.pretrained)
-    # else:
-    #     net = ResNetHourglass(pretrained=args.pretrained)
-    net = SegNet(pretrained=args.pretrained)
+    net = SegNet(pretrained=True, task=args.task)
     print(net)
+    print('~+~'*15)
+    print('# of model parameters: ', parameter_count(net))
+    print('Size of model (in MB): ', model_size_in_MB(net))
+    print('~+~'*15)
     if torch.cuda.is_available():
         net.cuda()
     train(net, epochs=args.epochs, batch_size=args.batch_size, valid=args.valid,
-          freq_log=args.freq_log)
+          freq_log=args.freq_log, out_dir=args.out_dir)
