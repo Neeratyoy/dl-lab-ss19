@@ -74,29 +74,35 @@ class ResNetHourglass(nn.Module):
             print("loading pretrained weights...")
             self.res_conv.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
         # removing output FC layer
-        self.res_conv = nn.Sequential(*list(self.res_conv.children())[:-3])
-        # outputs 256x16x16
+        self.res_conv = nn.Sequential(*list(self.res_conv.children())[:-2])
+        # outputs 512x8x8
 
         # creating transpose convolution layers
         self.deconv1 = nn.Sequential(
+                            nn.ConvTranspose2d(in_channels=512, out_channels=256, kernel_size=4,
+                                               stride=2, padding=1),  # output_size = 16
+                            nn.BatchNorm2d(num_features=256),
+                            nn.ReLU()
+                        )
+        self.deconv2 = nn.Sequential(
                             nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4,
                                                stride=2, padding=1),  # output_size = 32
                             nn.BatchNorm2d(num_features=128),
                             nn.ReLU()
                         )
-        self.deconv2 = nn.Sequential(
+        self.deconv3 = nn.Sequential(
                             nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4,
                                                stride=2, padding=1),  # output_size = 64
                             nn.BatchNorm2d(num_features=64),
                             nn.ReLU()
                         )
-        self.deconv3 = nn.Sequential(
+        self.deconv4 = nn.Sequential(
                             nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4,
                                                stride=2, padding=1),  # output_size = 128
                             nn.BatchNorm2d(num_features=32),
                             nn.ReLU()
                         )
-        self.deconv4 = nn.Sequential(
+        self.deconv5 = nn.Sequential(
                             nn.ConvTranspose2d(in_channels=32, out_channels=17, kernel_size=4,
                                                stride=2, padding=1),  # output_size = 17x256x256
                             nn.BatchNorm2d(num_features=17),
@@ -109,6 +115,7 @@ class ResNetHourglass(nn.Module):
         x = self.deconv2(x)
         x = self.deconv3(x)
         x = self.deconv4(x)
+        x = self.deconv5(x)
 
         # computing soft-argmax and reshaping to a batch x 34 dimensional tensor
         x = softmax(x)

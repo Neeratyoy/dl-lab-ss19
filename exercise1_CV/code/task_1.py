@@ -89,6 +89,9 @@ def mpjpe_eval(net, data_loader):
             outputs = outputs.view(outputs.shape[0]*outputs.shape[1], outputs.shape[2])
             metric.append(torch.mean(torch.sum(pdist(labels, outputs).view(b_size,17), 1) /
                                      (torch.sum(weights.double(), 1)/2)).item())
+            if (i+1)%100 == 0:
+                metric = np.mean(metric)
+                return metric * inputs.shape[-1]
     metric = np.mean(metric)
     return metric * inputs.shape[-1]
 
@@ -145,6 +148,8 @@ def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
         if i % freq_log == freq_log-1:    # print every freq_log mini-batches
             print("Epoch #%d; Batch %d/%d; Loss: %f" %
                   (epoch_num, i+1, len(data_loader), np.mean(running_loss)))
+        if (i+1)%100 == 0:
+            return(running_loss)
     return running_loss
 
 
@@ -156,7 +161,7 @@ def train(net, **kwargs):
     out_dir = kwargs['out_dir']
 
     # train set
-    train_loader = get_data_loader(batch_size=batch_size, is_train=True)
+    train_loader = get_data_loader(batch_size=batch_size, is_train=False)
     # test set
     if valid: val_loader = get_data_loader(batch_size=batch_size, is_train=False)
 
@@ -171,8 +176,8 @@ def train(net, **kwargs):
 
         # evaluating MPJPE every odd epoch
         if epoch % 2 == 1:
-            train_mpjpe.append(mpjpe_eval(net, train_loader))
             print('-'*75)
+            train_mpjpe.append(mpjpe_eval(net, train_loader))
             if valid:
                 test_mpjpe.append(mpjpe_eval(net, val_loader))
                 plot_learning_curve(train_mpjpe, out_dir, "train_test", test=test_mpjpe)

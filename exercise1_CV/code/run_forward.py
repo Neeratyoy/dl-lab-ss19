@@ -15,11 +15,11 @@ def normalize_keypoints(keypoints, img_shape):
 
 if __name__ == '__main__':
     # PATH_TO_CKPT = './trained_net.model'
-    PATH_TO_CKPT = '/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/code/model_store/e_1.pt'
+    PATH_TO_CKPT = '/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/code/model_store/task_1/pretrained_True/e_20.pt'
 
     # create device and model
     cuda = torch.device('cuda')
-    model = ResNetHourglass(pretrained=True)
+    model = ResNetModel(pretrained=True)
     model.load_state_dict(torch.load(PATH_TO_CKPT))
     model.to(cuda)
 

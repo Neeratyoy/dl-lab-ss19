@@ -120,7 +120,7 @@ def train(net, **kwargs):
     epochs = kwargs['epochs']
     freq_log = kwargs['freq_log']
     out_dir = kwargs['out_dir']
-    
+
     # train set
     train_loader = get_data_loader(batch_size=batch_size, is_train=True)
     # test set
@@ -137,8 +137,8 @@ def train(net, **kwargs):
 
         # evaluating IoU every odd epoch
         if epoch % 2 == 1:
-            train_IoU.append(iou_eval(net, train_loader))
             print('-'*75)
+            train_IoU.append(iou_eval(net, train_loader))
             if valid:
                 test_IoU.append(iou_eval(net, val_loader))
                 plot_iou(train_IoU, out_dir, "train_test", test=test_IoU)
