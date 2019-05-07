@@ -89,9 +89,6 @@ def mpjpe_eval(net, data_loader):
             outputs = outputs.view(outputs.shape[0]*outputs.shape[1], outputs.shape[2])
             metric.append(torch.mean(torch.sum(pdist(labels, outputs).view(b_size,17), 1) /
                                      (torch.sum(weights.double(), 1)/2)).item())
-            if (i+1)%100 == 0:
-                metric = np.mean(metric)
-                return metric * inputs.shape[-1]
     metric = np.mean(metric)
     return metric * inputs.shape[-1]
 
@@ -148,8 +145,6 @@ def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
         if i % freq_log == freq_log-1:    # print every freq_log mini-batches
             print("Epoch #%d; Batch %d/%d; Loss: %f" %
                   (epoch_num, i+1, len(data_loader), np.mean(running_loss)))
-        if (i+1)%100 == 0:
-            return(running_loss)
     return running_loss
 
 
