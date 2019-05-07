@@ -50,6 +50,44 @@ def plot_learning_curve(train, out_dir, name, test=None):
         json.dump(plot_data, f)
 
 
+def load_n_plot_learning_curve(file1, file2, name1, name2, out_dir):
+    '''
+    Plots the learning curve - loss over epochs
+    :param train: The set of training losses over epochs
+    :param test: The set of test losses over epochs
+    :param out_dir: Directory to save the plots
+    :param name: Name appended to the plot saved 'learning_curve_[name].png'
+    :return: void
+    '''
+    data1 = []
+    data2 = []
+    with open(file1) as f:
+        data1 = json.load(f)
+    with open(file2) as f:
+        data2 = json.load(f)
+    try:
+        data1 = data1['test']
+        data2 = data2['test']
+    except:
+        print("Need a dict of lists with at least one key value as 'test'.")
+        return
+    size = min(len(data1), len(data2))
+    data1 = data1[:size]
+    data2 = data2[:size]
+    plt.clf()
+    x = np.arange(1, len(data1)*2+1, step=2)
+    plt.plot(x, data1, color='red', label=name1)
+    plt.plot(x, data2, color='green', label=name2)
+    plt.title('Comparison of MPJPE on Test set')
+    plt.xlabel('Epochs')
+    plt.ylabel('MPJPE')
+    plt.xticks(x)
+    plt.xlim(0,x[-1]+1)
+    plt.legend()
+    plt.grid(which='major', linestyle=':') #, axis='y')
+    plt.grid(which='minor', linestyle='--', axis='y')
+    plt.savefig(out_dir+'mpjpe_comparison_'+name1+'_'+name2+'.png',dpi=300)
+
 def normalize_keypoints(keypoints, img_shape):
     if img_shape[-1] != img_shape[-2]:
         raise ValueError("Only square images are supported")
@@ -156,7 +194,7 @@ def train(net, **kwargs):
     out_dir = kwargs['out_dir']
 
     # train set
-    train_loader = get_data_loader(batch_size=batch_size, is_train=False)
+    train_loader = get_data_loader(batch_size=batch_size, is_train=True)
     # test set
     if valid: val_loader = get_data_loader(batch_size=batch_size, is_train=False)
 
