@@ -2,8 +2,8 @@ import json, os, torch
 from torchvision import transforms
 from PIL import Image
 
-# COCO_PATH = "/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/coco_subset/"
-COCO_PATH = "/content/coco_subset/"  # for Colab
+COCO_PATH = "/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/coco_subset/"
+# COCO_PATH = "/content/coco_subset/"  # for Colab
 # COCO_PATH = "/home/dllab/coco_subset/" # for TF pool
 
 

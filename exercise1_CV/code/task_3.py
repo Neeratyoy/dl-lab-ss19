@@ -148,17 +148,19 @@ def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
         if i % freq_log == freq_log-1:    # print every freq_log mini-batches
             print("Epoch #%d; Batch %d/%d; Loss: %f" %
                   (epoch_num, i+1, len(data_loader), np.mean(running_loss)))
-        # if (i+1) % 100 == 0:
-        #     return running_loss
     return running_loss
 
 
 def train(net, **kwargs):
-    batch_size = kwargs['batch_size']
-    valid = kwargs['valid']
-    epochs = kwargs['epochs']
-    freq_log = kwargs['freq_log']
-    out_dir = kwargs['out_dir']
+    try:
+        batch_size = kwargs['batch_size']
+        valid = kwargs['valid']
+        epochs = kwargs['epochs']
+        freq_log = kwargs['freq_log']
+        out_dir = kwargs['out_dir']
+    except:
+        print("One of the required arguments are missing.")
+        return
 
     # train set
     train_loader = get_data_loader(batch_size=batch_size, is_train=True)

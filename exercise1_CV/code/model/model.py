@@ -116,7 +116,7 @@ class ResNetHourglass(nn.Module):
         x = self.deconv3(x)
         x = self.deconv4(x)
         x = self.deconv5(x)
-
+        heatmap = x.clone()
         # computing soft-argmax and reshaping to a batch x 34 dimensional tensor
         x = softmax(x)
         img_size = x.shape[-1]
@@ -129,7 +129,7 @@ class ResNetHourglass(nn.Module):
         result = torch.cat([torch.unsqueeze(result_x, 2), torch.unsqueeze(result_y, 2)], dim=2)
         x = result.view((result.shape[0], result.shape[1] * result.shape[2]))
 
-        return x
+        return x, heatmap
 
 
 class Interpolate(nn.Module):

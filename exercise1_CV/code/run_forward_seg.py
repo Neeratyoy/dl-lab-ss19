@@ -25,7 +25,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # PATH_TO_CKPT = './trained_net.model'
-    PATH_TO_CKPT = '/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/code/model_store/task_3/2/task3_2_e_15.pt'
+    PATH_TO_CKPT = 'model_store/task_3/1/task3_1_e_10.pt'
+    # PATH_TO_CKPT2 = '/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/code/model_store/task_3/2/task3_2_e_15.pt'
 
     # create device and model
     cuda = torch.device('cuda')
@@ -36,6 +37,8 @@ if __name__ == '__main__':
     reader = get_data_loader(batch_size=1, is_train=False)
 
     for idx, (img, msk) in enumerate(reader):
+        if idx!=76:
+            continue
         print(idx)
         print('img', type(img), img.shape)
         print('msk', type(msk), msk.shape)
@@ -47,12 +50,17 @@ if __name__ == '__main__':
 
         # show
         fig = plt.figure()
-        ax1 = fig.add_subplot(121)
-        ax2 = fig.add_subplot(122)
-        ax1.imshow(img_rgb[0]); #ax1.axis('off'); ax1.set_title("Image")
-        ax1.imshow(msk[0], alpha=0.4); ax1.axis('off'); ax1.set_title("Ground Truth")
+        ax2 = fig.add_subplot(111)
+        # ax1 = fig.add_subplot(121)
+        # ax2 = fig.add_subplot(122)
+        # ax1.imshow(img_rgb[0]); ax1.axis('off'); ax1.set_title("Image")
+        # ax1.imshow(msk[0], alpha=0.4); #ax1.axis('off'); ax1.set_title("Upsampling")
         ax2.imshow(img_rgb[0])
         ax2.imshow(torch.round(pred[0]), alpha=0.4)
-        # ax2.imshow(pred[0], alpha=0.4)
-        ax2.axis('off'); ax2.set_title("Prediction")
-        plt.show()
+        # # ax2.imshow(pred[0], alpha=0.4)
+        ax2.axis('off'); ax2.set_title("Upsampling")
+        plt.savefig('3_1.png', dpi=300)
+        # plt.clf()
+        # if (idx+1) % 100 == 0:
+        #     break
+        # plt.show()

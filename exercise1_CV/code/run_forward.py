@@ -15,11 +15,11 @@ def normalize_keypoints(keypoints, img_shape):
 
 if __name__ == '__main__':
     # PATH_TO_CKPT = './trained_net.model'
-    PATH_TO_CKPT = '/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/code/model_store/task_1/pretrained_True/e_20.pt'
+    PATH_TO_CKPT = '/media/neeratyoy/Mars/Freiburg/SummerSemester19/DL_Lab/dl-lab-ss19/exercise1_CV/code/model_store/task_2/pretrained_True/task_2_True_e_15.pt'
 
     # create device and model
     cuda = torch.device('cuda')
-    model = ResNetModel(pretrained=True)
+    model = ResNetHourglass(pretrained=True)
     model.load_state_dict(torch.load(PATH_TO_CKPT))
     model.to(cuda)
 
@@ -27,6 +27,8 @@ if __name__ == '__main__':
                                  is_train=False)
 
     for idx, (img, keypoints, weights) in enumerate(val_loader):
+        if idx != 22:
+            continue
         img = img.to(cuda)
         keypoints = keypoints.to(cuda)
         weights = weights.to(cuda)
@@ -52,7 +54,7 @@ if __name__ == '__main__':
         dist = pdist(pred2, keypoints2).double() / V.double()
         # dist = torch.transpose(torch.transpose(dist.double(), dim0=0, dim1=1) / V.double(),
         #                       dim0=0, dim1=1)
-        print(torch.mean(dist).item() * img.shape[-1], img.shape[-1])
+        print(idx, torch.mean(dist).item() * img.shape[-1], img.shape[-1])
 
         # show results
         img_np = np.transpose(img.cpu().detach().numpy(), [0, 2, 3, 1])
@@ -63,10 +65,19 @@ if __name__ == '__main__':
 
         for bid in range(img_np.shape[0]):
             fig = plt.figure()
-            ax1 = fig.add_subplot(121)
-            ax2 = fig.add_subplot(122)
-            ax1.imshow(img_np[bid]), ax1.axis('off'), ax1.set_title('input + gt')
-            plot_keypoints(ax1, kp_gt[bid], vis[bid], img_size=img_np[bid].shape[:2], draw_limbs=True, draw_kp=True)
-            ax2.imshow(img_np[bid]), ax2.axis('off'), ax2.set_title('input + pred')
+            ax2 = fig.add_subplot(111)
+            # # ax2 = fig.add_subplot(122)
+            # # ax1.imshow(img_np[bid]), ax1.axis('off'), ax1.set_title('ground truth')
+            # # plot_keypoints(ax1, kp_gt[bid], vis[bid], img_size=img_np[bid].shape[:2], draw_limbs=True, draw_kp=True)
+            ax2.imshow(img_np[bid]), ax2.axis('off'), ax2.set_title('')
             plot_keypoints(ax2, kp_pred[bid], vis[bid], img_size=img_np[bid].shape[:2], draw_limbs=True, draw_kp=True)
-            plt.show()
+            plt.savefig(str(idx)+'.png', dpi=300)
+
+            # fig = plt.figure()
+            # ax1 = fig.add_subplot(121)
+            # ax2 = fig.add_subplot(122)
+            # ax1.imshow(img_np[bid]), ax1.axis('off'), ax1.set_title('input + gt')
+            # plot_keypoints(ax1, kp_gt[bid], vis[bid], img_size=img_np[bid].shape[:2], draw_limbs=True, draw_kp=True)
+            # ax2.imshow(img_np[bid]), ax2.axis('off'), ax2.set_title('input + pred')
+            # plot_keypoints(ax2, kp_pred[bid], vis[bid], img_size=img_np[bid].shape[:2], draw_limbs=True, draw_kp=True)
+            # plt.show()

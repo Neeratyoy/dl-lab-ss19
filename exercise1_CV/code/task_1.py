@@ -88,6 +88,7 @@ def load_n_plot_learning_curve(file1, file2, name1, name2, out_dir):
     plt.grid(which='minor', linestyle='--', axis='y')
     plt.savefig(out_dir+'mpjpe_comparison_'+name1+'_'+name2+'.png',dpi=300)
 
+
 def normalize_keypoints(keypoints, img_shape):
     if img_shape[-1] != img_shape[-2]:
         raise ValueError("Only square images are supported")
@@ -187,11 +188,15 @@ def single_pass(net, data_loader, loss_criterion, optimizer, epoch_num,
 
 
 def train(net, **kwargs):
-    batch_size = kwargs['batch_size']
-    valid = True if (kwargs['valid'] == 'True') else False
-    epochs = kwargs['epochs']
-    freq_log = kwargs['freq_log']
-    out_dir = kwargs['out_dir']
+    try:
+        batch_size = kwargs['batch_size']
+        valid = True if (kwargs['valid'] == 'True') else False
+        epochs = kwargs['epochs']
+        freq_log = kwargs['freq_log']
+        out_dir = kwargs['out_dir']
+    except:
+        print("One of the required arguments are missing.")
+        return
 
     # train set
     train_loader = get_data_loader(batch_size=batch_size, is_train=True)
