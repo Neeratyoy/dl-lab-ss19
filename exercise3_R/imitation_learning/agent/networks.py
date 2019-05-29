@@ -32,8 +32,9 @@ class CNN(nn.Module):
         out_size = self._update_size(dim=out_size, kernel_size=4, stride=2)
         out_size = out_size * out_size * 32
         # FC layer
-        fc = nn.Linear(in_features=out_size, out_features=256)
-        # dropout = nn.Dropout(0.5)
+        fc1 = nn.Linear(in_features=out_size, out_features=256)
+        fc2 = nn.Linear(in_features=256, out_features=256)
+        dropout = nn.Dropout(0.5)
         actv = nn.ReLU()
         # Output layer
         output = nn.Linear(in_features=256, out_features=n_classes)
@@ -46,9 +47,12 @@ class CNN(nn.Module):
                                 bn2
                             )
         self.fcs = nn.Sequential(
-                        fc,
+                        fc1,
                         actv,
-                        # dropout,
+                        dropout,
+                        fc2,
+                        actv,
+                        dropout,
                         output
                   )
         # TODO : define layers of a convolutional neural network

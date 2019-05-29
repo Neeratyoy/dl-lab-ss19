@@ -48,7 +48,7 @@ def run_episode(env, agent, rendering=True, max_timesteps=1000, history_length=1
         # a = ...
         # when i >= history_length
         a, _ = agent.predict(np.array([state]))
-        print(a)
+        # print(a)
         a = np.argmax(a.detach().cpu().numpy()[0])
         a = id_to_action(a)
         # a = id_to_action(3)

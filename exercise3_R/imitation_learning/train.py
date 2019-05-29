@@ -38,14 +38,30 @@ def read_data(datasets_dir="./data", frac = 0.1):
     return X_train, y_train, X_valid, y_valid
 
 
-def preprocessing(X_train, y_train, X_valid, y_valid, history_length=1):
+def preprocessing(X_train, y_train, X_valid, y_valid, history_length=1, augment='True'):
     '''
     Stacks images based on history_length
     Assumes that the images are gray scale already
     '''
-    # Data Augmentation
-    #   flip_direction
-    #   mirror_state
+    if augment == 'True':
+        print("Augmenting training set...")
+        # Creating placeholders for pre-processed training data
+        X_aug = np.zeros((2 * X_train.shape[0], X_train.shape[-2], X_train.shape[-1]))
+        y_aug = np.zeros(2 * X_train.shape[0])
+        ### Data Augmentation - mirror the data and append below
+        # Copying data
+        X_aug[:len(X_train)] = X_train[:len(X_train)].copy()
+        y_aug[:len(y_train)] = y_train[:len(y_train)].copy()
+        j = len(X_train)
+        # Mirroring data
+        for i in range(len(X_train)):
+            X_aug[j] = mirror_state(X_train[i])
+            y_aug[j] = flip_direction(y_train[i])
+            j = j+1
+        # Re-assigning and cleaning memory
+        X_train = X_aug.copy(); y_train = y_aug.copy()
+        del(X_aug, y_aug)
+
     print("Preprocessing training set...")
     train_size = len(X_train) - history_length + 1
     X_stacked = np.array(np.random.randint(0, 255, (train_size, history_length,
@@ -55,8 +71,11 @@ def preprocessing(X_train, y_train, X_valid, y_valid, history_length=1):
     for i in range(len(X_train)-history_length + 1):
         print("%s/%s" % (i+1, len(X_train)-history_length+1), end='\r')
         X_stacked[i] = np.stack(X_train[i:i+history_length])
-        y_stacked[i] = y_train[history_length-1]
+        y_stacked[i] = y_train[i+history_length-1].copy()
+        # print(y_train[history_length-1])
+
     print("\nPreprocessing validation set...")
+    # Creating placeholders for pre-processed validation data
     valid_size = len(X_valid) - history_length + 1
     X_valid_stacked = np.array(np.random.randint(0, 255, (valid_size, history_length,
                                                     X_valid.shape[-2], X_valid.shape[-1])),
@@ -65,7 +84,7 @@ def preprocessing(X_train, y_train, X_valid, y_valid, history_length=1):
     for i in range(len(X_valid)-history_length + 1):
         print("%s/%s" % (i+1, len(X_valid)-history_length+1), end='\r')
         X_valid_stacked[i] = np.stack(X_valid[i:i+history_length])
-        y_valid_stacked[i] = y_valid[history_length-1]
+        y_valid_stacked[i] = y_valid[i+history_length-1].copy()
     print('\n')
     return X_stacked, y_stacked, X_valid_stacked, y_valid_stacked
 
@@ -136,6 +155,8 @@ if __name__ == "__main__":
                         help='Learning rate for the optimizer.')
     parser.add_argument('-s', '--split', dest='frac', type=float, default=0.1,
                         help='Fraction of dataset left out for validation.')
+    parser.add_argument('-a', '--augment', dest='augment', type=str, default='True',
+                        choices=['True', 'False'], help='To augment the data or not.')
 
     args = parser.parse_args()
 
@@ -149,13 +170,15 @@ if __name__ == "__main__":
          optimizer = torch.optim.RMSprop
     frac = args.frac
     freq_log = args.freq_log
-
+    augment = args.augment
+    
     # read data
     X_train, y_train, X_valid, y_valid = read_data("./data", frac=frac)
 
     # preprocess data
     X_train, y_train, X_valid, y_valid = preprocessing(X_train, y_train, X_valid, y_valid,
-                                                       history_length=history_length)
+                                                       history_length=history_length,
+                                                       augment=augment)
 
     # train model (you can change the parameters!)
     train_model(X_train, y_train, X_valid, n_minibatches=n_minibatches, batch_size=batch_size,
