@@ -1,22 +1,22 @@
 import numpy as np
 
+STRAIGHT = 0
 LEFT =1
 RIGHT = 2
-STRAIGHT = 0
 ACCELERATE =3
 BRAKE = 4
 
 
 def rgb2gray(rgb):
-    """ 
+    """
     this method converts rgb images to grayscale.
     """
     gray = np.dot(rgb[...,:3], [0.2125, 0.7154, 0.0721])
-    return gray.astype('float32') 
+    return gray.astype('float32')
 
 
 def action_to_id(a):
-    """ 
+    """
     this method discretizes the actions.
     Important: this method only works if you recorded data pressing only one key at a time!
     """
@@ -24,12 +24,31 @@ def action_to_id(a):
     elif all(a == [1.0, 0.0, 0.0]): return RIGHT             # RIGHT: 2
     elif all(a == [0.0, 1.0, 0.0]): return ACCELERATE        # ACCELERATE: 3
     elif all(a == [0.0, 0.0, 0.2]): return BRAKE             # BRAKE: 4
-    else:       
+    else:
         return STRAIGHT                                      # STRAIGHT = 0
 
 
+def mirror_state(state):
+    """
+    Takes a mirror image of the state image along a vertical axis.
+    """
+    return np.flip(state, axis=1)
+
+
+def flip_direction(action_id):
+    """
+    Flips action right to left and left to right.
+    """
+    if action_id == LEFT:
+        return RIGHT
+    elif action_id == RIGHT:
+        return LEFT
+    else:
+        return action_id
+
+
 def id_to_action(action_id, max_speed=0.8):
-    """ 
+    """
     this method makes actions continous.
     Important: this method only works if you recorded data pressing only one key at a time!
     """
@@ -45,7 +64,7 @@ def id_to_action(action_id, max_speed=0.8):
         return np.array([0.0, 0.0, 0.1])
     else:
         return np.array([0.0, 0.0, 0.0])
-    
+
 
 class EpisodeStats:
     """

@@ -1,4 +1,8 @@
 from __future__ import print_function
+import sys
+# import os
+sys.path.append("../")
+# print(sys.path)
 
 import argparse
 from pyglet.window import key
@@ -9,6 +13,8 @@ import os
 from datetime import datetime
 import gzip
 import json
+
+from utils import *
 
 
 def key_press(k, mod):
@@ -47,7 +53,7 @@ def save_results(episode_rewards, results_dir="./results"):
 
     results["mean_all_episodes"] = np.array(episode_rewards).mean()
     results["std_all_episodes"] = np.array(episode_rewards).std()
- 
+
     fname = os.path.join(results_dir, "results_manually-%s.json" % datetime.now().strftime("%Y%m%d-%H%M%S"))
     fh = open(fname, "w")
     json.dump(results, fh)
@@ -77,7 +83,7 @@ if __name__ == "__main__":
 
 
     a = np.array([0.0, 0.0, 0.0]).astype('float32')
-    
+
     episode_rewards = []
     steps = 0
     while True:
@@ -88,15 +94,21 @@ if __name__ == "__main__":
             next_state, r, done, info = env.step(a)
             episode_reward += r
 
-            samples["state"].append(state)            # state has shape (96, 96, 3)
-            samples["action"].append(np.array(a))     # action has shape (1, 3)
-            samples["next_state"].append(next_state)
+            # samples["state"].append(state)            # state has shape (96, 96, 3)
+            samples["state"].append(rgb2gray(state))
+            action = action_to_id(a) #.reshape(1,5)
+            samples["action"].append(np.array(action))
+            # samples["action"].append(np.array(a))     # action has shape (1, 3)
+            # samples["next_state"].append(next_state)
+            samples["next_state"].append(rgb2gray(next_state))
             samples["reward"].append(r)
             samples["terminal"].append(done)
-            
+
             state = next_state
             steps += 1
 
+            # print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
+            # print("reward " + str(r))
             if steps % 1000 == 0 or done:
                 print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
                 print("\nstep {}".format(steps))
@@ -107,13 +119,9 @@ if __name__ == "__main__":
                 save_results(episode_rewards, "./results")
 
             env.render()
-            if done: 
+            if done:
                 break
-        
+
         episode_rewards.append(episode_reward)
 
     env.close()
-
-    
-
-   
