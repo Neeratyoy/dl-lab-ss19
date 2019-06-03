@@ -14,6 +14,7 @@ import torch
 
 from utils import *
 from agent.bc_agent import BCAgent, device
+# from bc_agent import BCAgent, device
 from tensorboard_evaluation import Evaluation
 
 def read_data(datasets_dir="./data", frac = 0.1):
@@ -99,7 +100,8 @@ def sample_batch(y_train, batch_size):
     return index
 
 
-def train_model(X_train, y_train, X_valid, n_minibatches, batch_size, lr, optimizer, history_length, freq, model_dir="./models", tensorboard_dir="./tensorboard"):
+def train_model(X_train, y_train, X_valid, y_valid, n_minibatches, batch_size, lr, optimizer,
+                history_length, freq, model_dir="./models", tensorboard_dir="./tensorboard"):
 
     # create result and model folders
     if not os.path.exists(model_dir):
@@ -171,7 +173,7 @@ if __name__ == "__main__":
     frac = args.frac
     freq_log = args.freq_log
     augment = args.augment
-    
+
     # read data
     X_train, y_train, X_valid, y_valid = read_data("./data", frac=frac)
 
@@ -181,5 +183,6 @@ if __name__ == "__main__":
                                                        augment=augment)
 
     # train model (you can change the parameters!)
-    train_model(X_train, y_train, X_valid, n_minibatches=n_minibatches, batch_size=batch_size,
-                optimizer=optimizer, lr=lr, history_length=history_length, freq=freq_log)
+    train_model(X_train, y_train, X_valid, y_valid, n_minibatches=n_minibatches,
+                batch_size=batch_size, optimizer=optimizer, lr=lr,
+                history_length=history_length, freq=freq_log)

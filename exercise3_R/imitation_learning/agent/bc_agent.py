@@ -1,4 +1,5 @@
 import torch
+# from networks import CNN
 from agent.networks import CNN
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
