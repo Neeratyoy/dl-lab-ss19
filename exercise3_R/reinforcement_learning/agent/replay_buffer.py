@@ -6,17 +6,20 @@ import pickle
 
 class ReplayBuffer:
 
-    # TODO: implement a capacity for the replay buffer (FIFO, capacity: 1e5 - 1e6)
-
     # Replay buffer for experience replay. Stores transitions.
-    def __init__(self):
+    def __init__(self, capacity=1e5):
         self._data = namedtuple("ReplayBuffer", ["states", "actions", "next_states", "rewards", "dones"])
         self._data = self._data(states=[], actions=[], next_states=[], rewards=[], dones=[])
+        self.capacity = capacity
 
     def add_transition(self, state, action, next_state, reward, done):
         """
         This method adds a transition to the replay buffer.
         """
+        # capacity for the replay buffer (FIFO)
+        if len(self._data.states) == self.capacity:
+            for i in range(len(self._data)):
+                self._data[i].pop(0)
         self._data.states.append(state)
         self._data.actions.append(action)
         self._data.next_states.append(next_state)

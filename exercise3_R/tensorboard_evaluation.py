@@ -15,11 +15,11 @@ class Evaluation:
 
         self.stats = stats
         self.pl_stats = {}
-        
+
         for s in self.stats:
             self.pl_stats[s] = tf.placeholder(tf.float32, name=s)
             tf.summary.scalar(s, self.pl_stats[s])
-            
+
         self.performance_summaries = tf.summary.merge_all()
 
     def write_episode_data(self, episode, eval_dict):
@@ -41,3 +41,13 @@ class Evaluation:
         self.tf_writer.close()
         self.sess.close()
 
+
+def read_logs(file):
+    logs = tf.train.summary_iterator(file)
+    plot_data = {'train_loss_1': [], 'valid_loss_1': [],
+                 'train_accuracy_1': [], 'valid_accuracy_1': []}
+    for log in logs:
+        values = log.summary.value
+        for val in values:
+            plot_data[val.tag].append(val.simple_value)
+    return plot_data
