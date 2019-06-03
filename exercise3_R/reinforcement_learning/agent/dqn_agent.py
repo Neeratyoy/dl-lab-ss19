@@ -48,7 +48,6 @@ class DQNAgent:
         This method stores a transition to the replay buffer and updates the Q networks.
         """
         self.replay_buffer.add_transition(state, action, next_state, reward, terminal)
-
         states, actions, next_states, rewards, dones = self.replay_buffer.next_batch(self.batch_size)
         ## Double Q-learning
         preds = self.Q(torch.tensor(states).to(device).float()).cpu()
@@ -65,6 +64,8 @@ class DQNAgent:
         end = np.where(dones)
         q_target[end] = 0.0
         q_target = torch.tensor(rewards).float() + self.gamma * q_target
+
+        del(states, actions, next_states, rewards, dones)
 
         ## DQN
         # preds = self.Q(torch.tensor(states).to(device).float()).cpu()
@@ -89,7 +90,7 @@ class DQNAgent:
             self.Q_target.state_dict()[name].data.copy_(new_weights)
 
 
-    def act(self, state, deterministic, eps):
+    def act(self, state, deterministic, eps, task="cartpole"):
         """
         This method creates an epsilon-greedy policy based on the Q-function approximator and epsilon (probability to select a random action)
         Args:
@@ -109,8 +110,12 @@ class DQNAgent:
                 # Hint for the exploration in CarRacing: sampling the action from a uniform distribution will probably not work.
                 # You can sample the agents actions with different probabilities (need to sum up to 1) so that the agent will prefer to accelerate or going straight.
                 # To see how the agent explores, turn the rendering in the training on and look what the agent is doing.
-                action_id = np.random.choice([0, 1, 2, 3, 4],
-                                             p = [0.5, 0.14, 0.14, 0.2, 0.02])
+                if task == "cartpole":
+                    action_id = np.random.choice([0, 1])
+                else:
+                    action_id = np.random.choice([0, 1, 2, 3, 4],
+                                                 p = [0.35, 0.19, 0.19, 0.25, 0.02])
+                                                 # p = [0.5, 0.14, 0.14, 0.2, 0.02])
 
         return action_id
 

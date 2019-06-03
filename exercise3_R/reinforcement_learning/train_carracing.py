@@ -36,7 +36,7 @@ def run_episode(env, agent, deterministic, skip_frames=0, do_training=True, rend
 
     # append image history to first state
     state = state_preprocessing(state)
-    image_hist.extend([state] * (history_length + 1))
+    # image_hist.extend([state] * (history_length + 1))
     # state = np.array(image_hist).reshape(96, 96, history_length + 1)
     # action = id_to_action(STRAIGHT)
     while True:
@@ -47,7 +47,7 @@ def run_episode(env, agent, deterministic, skip_frames=0, do_training=True, rend
         # action_id = np.random.choice([0, 1, 2, 3, 4]) #, p=[0.5, 0.1, 0.1, 0.25, 0.05])
         # action = id_to_action(action_id)
         # Hint: frame skipping might help you to get better results.
-        action_id = agent.act(state=state, deterministic=deterministic, eps=eps)
+        action_id = agent.act(state=state, deterministic=deterministic, eps=eps, task="carracing")
         action = id_to_action(action_id)
         reward = 0
         while i>0:
@@ -67,8 +67,8 @@ def run_episode(env, agent, deterministic, skip_frames=0, do_training=True, rend
                  break
 
         next_state = state_preprocessing(next_state)
-        image_hist.append(next_state)
-        image_hist.pop(0)
+        # image_hist.append(next_state)
+        # image_hist.pop(0)
         # next_state = np.array(image_hist).reshape(96, 96, history_length + 1)
         # action_id = action_to_id(action)
         if do_training:
@@ -127,7 +127,7 @@ def train_online(env, agent, num_episodes, decay_steps, rendering, max_timesteps
                                                       "accel" : stats.get_action_usage(ACCELERATE),
                                                       "brake" : stats.get_action_usage(BRAKE)
                                                     })
-        print("episode: ",i, '; reward:', stats.episode_reward, '; max_ts: ', max_ts)
+        print("episode: ",i, '; reward:', stats.episode_reward, '; max_ts: ', max_ts, '; len: ', len(agent.replay_buffer._data.states))
         # Evaluation
         if i % eval_cycle == 0:
             r = []
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     Q = CNN()
     Q_target = CNN()
     agent = DQNAgent(Q, Q_target, num_actions, epsilon=epsilon, gamma=gamma,
-                     lr=learning_rate, batch_size=batch_size)
+                     lr=learning_rate, batch_size=batch_size, capacity=10000)
 
     train_online(env, agent, num_episodes=num_episodes, decay_steps=decay_steps, rendering=rendering,
                  max_timesteps=max_timesteps, num_eval_episodes=num_eval_episodes,
