@@ -16,7 +16,6 @@ class CNN(nn.Module):
         returns the updated dimension "dim" (e.g. height or width)
         """
         return(int((dim + 2*padding - dilation*(kernel_size-1) - 1)/stride + 1))
-        # return int(np.floor((dim + 2*padding - (dilation*(kernel_size-1) + 1))/stride + 1))
 
     def __init__(self, history_length=1, n_classes=3):
         super(CNN, self).__init__()
@@ -55,10 +54,9 @@ class CNN(nn.Module):
                         dropout,
                         output
                   )
-        # TODO : define layers of a convolutional neural network
 
     def forward(self, x):
-        # TODO: compute forward pass
+        # Compute forward pass
         x = self.convolutions(x)
         x = x.view(x.shape[0], np.prod(x.shape[1:]))
         x = self.fcs(x)

@@ -1,26 +1,25 @@
 import torch
-from networks import CNN
-# from agent.networks import CNN
+from agent.networks import CNN
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class BCAgent:
 
     def __init__(self, lr=0.001, history_length=1, optimizer=torch.optim.Adam):
-        # TODO: Define network, loss function, optimizer
+        # Define network, loss function, optimizer
         self.net = CNN(history_length=history_length, n_classes=5)
         self.net = self.net.to(device)
         self.loss_criterion = torch.nn.CrossEntropyLoss()
         self.optimizer = optimizer(self.net.parameters(), lr=lr)
 
     def update(self, X_batch, y_batch):
-        # TODO: transform input to tensors
+        # Transform input to tensors
         X_batch = torch.tensor(X_batch).to(device, dtype=torch.float)
         y_batch = torch.tensor(y_batch).to(device, dtype=torch.long)
 
         torch.cuda.empty_cache()
         self.optimizer.zero_grad()
-        # TODO: forward + backward + optimize
+        # Forward + backward + optimize
         outputs = self.net(X_batch)
         loss = self.loss_criterion(outputs, y_batch)
         loss.backward()
@@ -29,7 +28,7 @@ class BCAgent:
         return outputs, loss
 
     def predict(self, X, y=None):
-        # TODO: forward pass
+        # Forward pass
         with torch.no_grad():
             X = torch.tensor(X).to(device, dtype=torch.float)
             outputs = self.net(X)

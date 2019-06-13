@@ -20,7 +20,6 @@ def run_episode(env, agent, deterministic, skip_frames=0, do_training=True, rend
     deterministic == True => agent executes only greedy actions according the Q function approximator (no random actions).
     do_training == True => train agent
     """
-
     stats = EpisodeStats()
 
     # Save history
@@ -34,25 +33,14 @@ def run_episode(env, agent, deterministic, skip_frames=0, do_training=True, rend
     # fix bug of corrupted states without rendering in gym environment
     env.viewer.window.dispatch_events()
 
-    # append image history to first state
     state = state_preprocessing(state)
-    # image_hist.extend([state] * (history_length + 1))
-    # state = np.array(image_hist).reshape(96, 96, history_length + 1)
-    # action = id_to_action(STRAIGHT)
     while True:
-        # TODO: get action_id from agent
-        # Hint: adapt the probabilities of the 5 actions for random sampling so that the agent explores properly.
-        # action_id = agent.act(...)
-        # action = your_id_to_action_method(...)
-        # action_id = np.random.choice([0, 1, 2, 3, 4]) #, p=[0.5, 0.1, 0.1, 0.25, 0.05])
-        # action = id_to_action(action_id)
-        # Hint: frame skipping might help you to get better results.
         action_id = agent.act(state=state, deterministic=deterministic, eps=eps, task="carracing")
         action = id_to_action(action_id)
         reward = 0
         while i>0:
             # To enforce an action in the zooming in of the race track
-            action = id_to_action(0)
+            action = id_to_action(3)
             _, r, _, _ = env.step(action)
             reward += r
             i = i-1
@@ -67,10 +55,6 @@ def run_episode(env, agent, deterministic, skip_frames=0, do_training=True, rend
                  break
 
         next_state = state_preprocessing(next_state)
-        # image_hist.append(next_state)
-        # image_hist.pop(0)
-        # next_state = np.array(image_hist).reshape(96, 96, history_length + 1)
-        # action_id = action_to_id(action)
         if do_training:
             agent.train(state, action_id, next_state, reward, terminal)
 
@@ -87,7 +71,7 @@ def run_episode(env, agent, deterministic, skip_frames=0, do_training=True, rend
 
 
 def train_online(env, agent, num_episodes, decay_steps, rendering, max_timesteps,
-                 num_eval_episodes, eval_cycle, skip_frames, #full_timesteps,
+                 num_eval_episodes, eval_cycle, skip_frames, full_timesteps,
                  model_dir="./models_carracing", tensorboard_dir="./tensorboard"):
 
     if not os.path.exists(model_dir):
@@ -95,19 +79,18 @@ def train_online(env, agent, num_episodes, decay_steps, rendering, max_timesteps
 
     print("... train agent")
     tensorboard = Evaluation(os.path.join(tensorboard_dir, "carracing"),
-                             stats=["episode_reward", "straight", "left", "right", "accel", "brake"],
+                             stats=["episode_reward", "straight", "left", "right", "accel", "brake", "avg_eval_reward"],
                              name='carracing')
 
     for i in range(num_episodes):
-        # Hint: you can keep the episodes short in the beginning by changing max_timesteps
-        # (otherwise the car will spend most of the time out of the track)
-
         # Max timesteps schedule
-        # growth_factor = 3
-        # max_ts = min(max(max_timesteps * (i/full_timesteps)**(growth_factor), 1), max_timesteps)
+        ### A linear scehdule starting from min_timesteps to full_timesteps
         min_timesteps = 200
         max_ts = np.arange(start=min_timesteps, stop=max_timesteps,
-                           step = (max_timesteps-min_timesteps)/num_episodes)[i]
+                           step = (max_timesteps-min_timesteps)/full_timesteps)
+        ### Constant max_timesteps after full_timesteps
+        max_ts = np.append(max_ts, np.repeat(max_timesteps, num_episodes - len(max_ts)))[i]
+
         # Linear epsilon decay
         if decay_steps is not 0:
             start = 1; end = agent.epsilon
@@ -118,28 +101,32 @@ def train_online(env, agent, num_episodes, decay_steps, rendering, max_timesteps
 
 
         stats = run_episode(env, agent, max_timesteps=max_ts, deterministic=False,
-                            do_training=True, eps=eps, rendering=rendering)
+                            do_training=True, eps=eps, rendering=rendering,
+                            skip_frames=skip_frames)
 
-        tensorboard.write_episode_data(i, eval_dict={ "episode_reward" : stats.episode_reward,
-                                                      "straight" : stats.get_action_usage(STRAIGHT),
-                                                      "left" : stats.get_action_usage(LEFT),
-                                                      "right" : stats.get_action_usage(RIGHT),
-                                                      "accel" : stats.get_action_usage(ACCELERATE),
-                                                      "brake" : stats.get_action_usage(BRAKE)
-                                                    })
         print("episode: ",i, '; reward:', stats.episode_reward, '; max_ts: ', max_ts, '; len: ', len(agent.replay_buffer._data.states))
+        r = None
         # Evaluation
         if i % eval_cycle == 0:
             r = []
             for j in range(num_eval_episodes):
                 eval_stats = run_episode(env, agent, deterministic=True, do_training=False,
-                                         rendering=rendering, max_timesteps=max_ts) #max_timesteps)
+                                         rendering=rendering, max_timesteps=max_ts,
+                                         skip_frames=skip_frames) #max_timesteps)
                 r.append(eval_stats.episode_reward)
-            print("Evaluation score: {}\n".format(r))
-
+            print("Evaluation score: Mean={}; Std.={}; Max={}\n".format(np.mean(r), np.std(r), np.max(r)))
+            r = np.mean(r)
+        tensorboard.write_episode_data(i, eval_dict={ "episode_reward" : stats.episode_reward,
+                                                      "straight" : stats.get_action_usage(STRAIGHT),
+                                                      "left" : stats.get_action_usage(LEFT),
+                                                      "right" : stats.get_action_usage(RIGHT),
+                                                      "accel" : stats.get_action_usage(ACCELERATE),
+                                                      "brake" : stats.get_action_usage(BRAKE),
+                                                      "avg_eval_reward": r
+                                                    })
         # store model.
         if i % eval_cycle == 0 or (i >= num_episodes - 1):
-            agent.save(os.path.join(model_dir, "dqn_agent.pt"))
+            agent.save(os.path.join(model_dir, "dqn_agent_{}.pt".format(i)))
     tensorboard.close_session()
 
 
@@ -172,9 +159,9 @@ if __name__ == "__main__":
                         help='The discount factor for computing target returns.')
     parser.add_argument('-s', '--skip_frames', dest='skip_frames', type=int, default=10,
                         help='Number of frames to skip.')
-    # parser.add_argument('-x', '--full_timesteps', dest='full_timesteps', type=int, default=10,
-    #                     help='Maximum number of episodes by which timesteps per episode is equal to the \
-    #                           max timesteps allowed per episode.')
+    parser.add_argument('-x', '--full_timesteps', dest='full_timesteps', type=int, default=None,
+                        help='Maximum number of episodes by which timesteps per episode is equal to the \
+                              max timesteps allowed per episode.')
 
     args = parser.parse_args()
 
@@ -189,16 +176,12 @@ if __name__ == "__main__":
     learning_rate = args.learning_rate
     gamma = args.gamma
     skip_frames = args.skip_frames
-    # full_timesteps = args.full_timesteps
+    full_timesteps = args.full_timesteps if args.full_timesteps is not None else num_episodes
 
-    # num_eval_episodes = 5
-    # eval_cycle = 20
     num_actions = 5
 
     env = gym.make('CarRacing-v0').unwrapped
 
-    # TODO: Define Q network, target network and DQN agent
-    # ...
     Q = CNN()
     Q_target = CNN()
     agent = DQNAgent(Q, Q_target, num_actions, epsilon=epsilon, gamma=gamma,
@@ -206,5 +189,5 @@ if __name__ == "__main__":
 
     train_online(env, agent, num_episodes=num_episodes, decay_steps=decay_steps, rendering=rendering,
                  max_timesteps=max_timesteps, num_eval_episodes=num_eval_episodes,
-                 eval_cycle = eval_cycle, skip_frames=skip_frames, #full_timesteps=full_timesteps,
+                 eval_cycle = eval_cycle, skip_frames=skip_frames, full_timesteps=full_timesteps,
                  model_dir="./models_carracing")

@@ -55,9 +55,10 @@ def train_online(env, agent, num_episodes, decay_steps, rendering, max_timesteps
     print("... train agent")
 
     tensorboard = Evaluation(store_dir=os.path.join(tensorboard_dir, "cartpole"), name="cartpole",
-                             stats=["episode_reward", "a_0", "a_1"])
+                             stats=["episode_reward", "a_0", "a_1", "eval_reward"])
 
     # Training
+    eval_score = 0
     for i in range(num_episodes):
         # Linear epsilon decay
         if decay_steps is not 0:
@@ -68,9 +69,7 @@ def train_online(env, agent, num_episodes, decay_steps, rendering, max_timesteps
             eps = agent.epsilon
         stats = run_episode(env, agent, deterministic=False, do_training=True, eps=eps,
                             max_timesteps=max_timesteps)
-        tensorboard.write_episode_data(i, eval_dict={  "episode_reward" : stats.episode_reward,
-                                                       "a_0" : stats.get_action_usage(0),
-                                                       "a_1" : stats.get_action_usage(1)})
+
         print("episode: ",i, '; reward:', stats.episode_reward)
         # Evaluation
         if i % eval_cycle == 0:
@@ -80,6 +79,12 @@ def train_online(env, agent, num_episodes, decay_steps, rendering, max_timesteps
                                          rendering=rendering, max_timesteps=max_timesteps)
                 r.append(eval_stats.episode_reward)
             print("Evaluation score: {}\n".format(r))
+            eval_score = np.mean(r)
+
+        tensorboard.write_episode_data(i, eval_dict={  "episode_reward" : stats.episode_reward,
+                                                       "a_0" : stats.get_action_usage(0),
+                                                       "a_1" : stats.get_action_usage(1),
+                                                       "eval_reward" : eval_score})
 
         # store model.
         if i % eval_cycle == 0 or i >= (num_episodes - 1):

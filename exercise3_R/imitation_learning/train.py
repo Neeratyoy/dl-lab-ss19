@@ -14,7 +14,6 @@ import torch
 
 from utils import *
 from agent.bc_agent import BCAgent, device
-# from bc_agent import BCAgent, device
 from tensorboard_evaluation import Evaluation
 
 def read_data(datasets_dir="./data", frac = 0.1):

@@ -55,13 +55,13 @@ def id_to_action(action_id, max_speed=0.8):
     a = np.array([0.0, 0.0, 0.0])
 
     if action_id == LEFT:
-        return np.array([-1.0, 0.0, 0.05])
+        return np.array([-0.5, 0.0, 0.05])
     elif action_id == RIGHT:
-        return np.array([1.0, 0.0, 0.05])
+        return np.array([0.5, 0.0, 0.05])
     elif action_id == ACCELERATE:
         return np.array([0.0, max_speed, 0.0])
     elif action_id == BRAKE:
-        return np.array([0.0, 0.0, 0.1])
+        return np.array([0.0, 0.0, 0.2])
     else:
         return np.array([0.0, 0.0, 0.0])
 
