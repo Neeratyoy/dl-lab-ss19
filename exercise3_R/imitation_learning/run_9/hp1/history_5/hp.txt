@@ -1,0 +1,10 @@
+history_length = 5
+n_minibatches = 2000
+batch_size = 64
+lr = 1e-3
+optimizer = torch.optim.Adam
+# optimizer = torch.optim.RMSprop
+frac = 0.1
+freq_log = 50
+augment = "False"
+
