@@ -22,7 +22,6 @@ def run_episode(env, agent, rendering=True, max_timesteps=1000, history_length=1
     state = rgb2gray(env.reset())
     state = np.array([state])
 
-#    if history_length == 1:
     old_state = state
 
     # fix bug of curropted states without rendering in racingcar gym environment
@@ -31,26 +30,14 @@ def run_episode(env, agent, rendering=True, max_timesteps=1000, history_length=1
     pause = 0
     while True:
 
-        # TODO: preprocess the state in the same way than in your preprocessing in train_agent.py
-        #    state = ...
-
-
+        # To stack history_length frames in the beginning
         while history_length > 1 and i < history_length:
             next_state, _, done, _ = env.step(id_to_action(0))
             next_state = rgb2gray(next_state)
             state = np.append(state, [next_state], axis=0)
             i = i+1
 
-        # TODO: get the action from your agent! You need to transform the discretized actions to continuous
-        # actions.
-        # hints:
-        #       - the action array fed into env.step() needs to have a shape like np.array([0.0, 0.0, 0.0])
-        #       - just in case your agent misses the first turn because it is too fast: you are allowed to clip the acceleration in test_agent.py
-        #       - you can use the softmax output to calculate the amount of lateral acceleration
-        # a = ...
-        # when i >= history_length
-
-        if step > 0 and np.all(old_state == state): # np.all(next_state == state):
+        if step > 0 and np.all(old_state == state):
             pause = pause + 1
             if pause > 5:
                 push_start = 20
@@ -67,7 +54,6 @@ def run_episode(env, agent, rendering=True, max_timesteps=1000, history_length=1
                 pause = 0
 
         a, _ = agent.predict(np.array([state]))
-        # print(a)
         a = np.argmax(a.detach().cpu().numpy()[0])
         a = id_to_action(a)
         next_state, r, done, info = env.step(a)
@@ -111,9 +97,7 @@ if __name__ == "__main__":
 
     n_test_episodes = 15                  # number of episodes to test
 
-    # TODO: load agent
-    # history_length = 20
-    # lr = 0.001
+    # preparing agent
     agent = BCAgent(history_length=history_length)
     agent.load(model_path)
 
@@ -125,7 +109,7 @@ if __name__ == "__main__":
                                     history_length=history_length,
                                     max_timesteps=max_timesteps)
         episode_rewards.append(episode_reward)
-        print(episode_reward)
+        print(episode_reward, '\n')
 
     # save results in a dictionary and write them into a .json file
     results = dict()

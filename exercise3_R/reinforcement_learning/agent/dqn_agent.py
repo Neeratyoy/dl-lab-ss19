@@ -49,6 +49,7 @@ class DQNAgent:
         """
         self.replay_buffer.add_transition(state, action, next_state, reward, terminal)
         states, actions, next_states, rewards, dones = self.replay_buffer.next_batch(self.batch_size)
+
         ## Double Q-learning
         preds = self.Q(torch.tensor(states).to(device).float()).cpu()
         a = torch.tensor(actions) #torch.argmax(torch.tensor(actions), 1)
@@ -83,7 +84,7 @@ class DQNAgent:
         self.optimizer.step()
 
         # Update Q target (Polyak averaging)
-        ### tau = 0.01; tau * Q + (1 - tau) * Q_target
+        ### tau = 0.01; Q_target = tau * Q + (1 - tau) * Q_target
         for name, param in self.Q.named_parameters():
             new_weights = (1 - self.tau) * self.Q_target.state_dict()[name].data + \
                           self.tau * self.Q.state_dict()[name].data
@@ -107,15 +108,11 @@ class DQNAgent:
                 action_id = torch.argmax(a).item()
             else:
                 # sample random action
-                # Hint for the exploration in CarRacing: sampling the action from a uniform distribution will probably not work.
-                # You can sample the agents actions with different probabilities (need to sum up to 1) so that the agent will prefer to accelerate or going straight.
-                # To see how the agent explores, turn the rendering in the training on and look what the agent is doing.
                 if task == "cartpole":
                     action_id = np.random.choice([0, 1])
                 else:
                     action_id = np.random.choice([0, 1, 2, 3, 4],
-                                                 p = [0.35, 0.19, 0.19, 0.25, 0.02])
-                                                 # p = [0.5, 0.14, 0.14, 0.2, 0.02])
+                                                 p = [0.35, 0.16, 0.16, 0.25, 0.08])
 
         return action_id
 
@@ -124,5 +121,3 @@ class DQNAgent:
 
     def load(self, file_name):
         self.Q.load_state_dict(torch.load(file_name))
-        # self.Q.load_state_dict(torch.load(file_name))
-        # self.Q_target.load_state_dict(torch.load(file_name))

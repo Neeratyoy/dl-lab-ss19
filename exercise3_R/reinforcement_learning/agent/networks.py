@@ -8,23 +8,26 @@ CartPole network
 """
 
 class MLP(nn.Module):
-  def __init__(self, state_dim, action_dim, hidden_dim=400):
-    super(MLP, self).__init__()
-    self.fc1 = nn.Linear(state_dim, hidden_dim)
-    self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-    self.fc3 = nn.Linear(hidden_dim, action_dim)
-    self.dropout = nn.Dropout(0.5)
+    """
+    CartPole Network
+    """
+    def __init__(self, state_dim, action_dim, hidden_dim=400):
+        super(MLP, self).__init__()
+        self.fc1 = nn.Linear(state_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, action_dim)
+        self.dropout = nn.Dropout(0.5)
 
-  def forward(self, x):
-    x = F.relu(self.fc1(x))
-    # x = self.dropout(x)
-    x = F.relu(self.fc2(x))
-    # x = self.dropout(x)
-    return self.fc3(x)
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return self.fc3(x)
 
 
 class CNN(nn.Module):
-
+    """
+    CarRacing Network
+    """
     def _update_size(self, dim, kernel_size, stride, padding=0.0, dilation=1.0):
         """
         Helper method to keep track of changing output dimensions between convolutions and Pooling layers
@@ -50,7 +53,6 @@ class CNN(nn.Module):
         fc1 = nn.Linear(in_features=out_size, out_features=256)
         dropout = nn.Dropout(0.5)
         actv = nn.ReLU()
-        fc2 = nn.Linear(in_features=256, out_features=256)
         # Output layer
         output = nn.Linear(in_features=256, out_features=actions)
         self.convolutions = nn.Sequential(
@@ -65,9 +67,6 @@ class CNN(nn.Module):
                         fc1,
                         actv,
                         dropout,
-                        # fc2,
-                        # actv,
-                        # dropout,
                         output
                   )
 

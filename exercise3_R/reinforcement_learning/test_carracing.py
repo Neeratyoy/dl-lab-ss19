@@ -7,6 +7,8 @@ from agent.networks import *
 import numpy as np
 import argparse
 import os
+from datetime import datetime
+import json
 
 
 np.random.seed(0)
@@ -28,14 +30,7 @@ if __name__ == "__main__":
     rendering = True if args.rendering=='True' else False
 
     env = gym.make("CarRacing-v0").unwrapped
-
-    history_length =  0
-
-    #TODO: Define networks and load agent
-    # ....
-
-    # n_test_episodes = 15
-
+    
     num_actions = 5
     Q = CNN()
     Q.eval()
@@ -49,6 +44,7 @@ if __name__ == "__main__":
                             skip_frames=10, rendering=rendering,
                             max_timesteps=max_timesteps, history_length=0, eps=0.1)
         episode_rewards.append(stats.episode_reward)
+        print(stats.episode_reward)
 
     # save results in a dictionary and write them into a .json file
     results = dict()
@@ -65,3 +61,4 @@ if __name__ == "__main__":
 
     env.close()
     print('... finished')
+    print(results["mean"], results["std"])
